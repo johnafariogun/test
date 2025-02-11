@@ -44,10 +44,9 @@ jobs:
 
       - name: SSH into EC2 and Deploy
         env:
-          EC2_USER: ubuntu  # Change to ec2-user if using Amazon Linux
           EC2_IP: ${{ secrets.EC2_IP }}
         run: |
-          ssh -o StrictHostKeyChecking=no -i private_key ${EC2_USER}@${EC2_IP} << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i private_key ubuntu@${EC2_IP} << 'EOF'
             # Update system packages
             sudo apt update -y
             sudo apt install -y docker.io
@@ -57,11 +56,11 @@ jobs:
             sudo systemctl restart docker
 
             # Remove old app directory
-            sudo rm -rf /home/${EC2_USER}/app
+            sudo rm -rf /home/ubuntu/app
 
             # Clone the latest code from GitHub
             git clone https://github.com/johnafariogun/test /home/${EC2_USER}/app
-            cd /home/${EC2_USER}/app
+            cd /home/ubuntu/app
 
             # Stop & remove the old container if it exists
             sudo docker stop fastapi-nginx || true
