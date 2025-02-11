@@ -1,4 +1,3 @@
-
 name: FastAPI CI/CD Pipeline
 
 on:
@@ -38,11 +37,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.12
-
       - name: Set up SSH Private Key
         run: |
           echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key
@@ -50,40 +44,39 @@ jobs:
 
       - name: SSH into EC2 and Deploy
         env:
-          EC2_USER: ubuntu  # Or ec2-user, depending on your setup
+          EC2_USER: ubuntu  # Change to ec2-user if using Amazon Linux
           EC2_IP: ${{ secrets.EC2_IP }}
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key ${EC2_USER}@${EC2_IP} << 'EOF'
-            # Update and install Docker if not installed (idempotent)
-            sudo apt update -y  # -y to automatically accept prompts
+            # Update system packages
+            sudo apt update -y
             sudo apt install -y docker.io
 
             # Ensure Docker service is running
-            sudo systemctl enable docker  # Enable on boot
-            sudo systemctl restart docker  # Restart to apply changes
-            sudo rm -rf app
-            mkdir app
-            sudo chown ${EC2_USER}:${EC2_USER} app
-            git clone https://github.com/johnafariogun/test
-            mv test/* app/
-            sudo rm -rf test
-            cd app
-            
+            sudo systemctl enable docker
+            sudo systemctl restart docker
 
-            
+            # Remove old app directory
+            sudo rm -rf /home/${EC2_USER}/app
 
-            # Build Docker image (with a tag)
-            sudo docker build -t fastapi-app:latest .
+            # Clone the latest code from GitHub
+            git clone https://github.com/johnafariogun/test /home/${EC2_USER}/app
+            cd /home/${EC2_USER}/app
 
-            # Run the new container (expose port 80, map volumes if needed)
-            sudo docker run -d -p 80:80 fastapi-app:latest
+            # Stop & remove the old container if it exists
+            sudo docker stop fastapi-nginx || true
+            sudo docker rm fastapi-nginx || true
 
-            # Verify Deployment (Optional - but recommended)
+            # Build the new Docker image
+            sudo docker build -t fastapi-nginx:latest .
+
+            # Run the new container (expose ports for future HTTPS setup)
+            sudo docker run -d -p 80:80 --name fastapi-nginx fastapi-nginx:latest
+
+            # Verify Deployment (Optional)
             curl -i 127.0.0.1:80/docs
           EOF
 
-
       - name: Clean up SSH Key
-        if: always() # Always run cleanup even if previous steps fail
+        if: always()
         run: rm -f private_key
-
