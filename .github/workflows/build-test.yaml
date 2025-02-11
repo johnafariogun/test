@@ -60,15 +60,17 @@ jobs:
             # Ensure Docker service is running
             sudo systemctl enable docker  # Enable on boot
             sudo systemctl restart docker  # Restart to apply changes
-
-            # Create app directory if not exists (idempotent)
+      - name: Create app directory if not exists (idempotent)
+        env:
+          EC2_USER: ubuntu  # Or ec2-user, depending on your setup
+          EC2_IP: ${{ secrets.EC2_IP }}
+        run: |      
             mkdir app
             sudo chown ${EC2_USER}:${EC2_USER} app
-
-            
+            cd app
             git pull origin main
 
-            cd app
+            
 
             # Build Docker image (with a tag)
             sudo docker build -t fastapi-app:latest .
