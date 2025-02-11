@@ -45,12 +45,12 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }} # e.g., us-east-1
 
       - name: SSH into EC2 instance and deploy
-        uses: appleboy/ghaction-ssh@master
+        uses: webfactory/ssh-action@v0.6.0 # Use a specific version
         with:
           host: ${{ secrets.EC2_IP }}
-          username: ubuntu # Or your username
+          username: ubuntu
           key: ${{ secrets.EC2_PRIVATE_KEY }}
-          script: |
+          commands: |
             # Update and install necessary packages (if needed)
             sudo apt update && sudo apt install -y docker.io
 
@@ -69,20 +69,13 @@ jobs:
             docker build -t fastapi-book-app .
 
             # Stop and remove existing container (if any)
-            docker stop fastapi-book-container || true  # Use the same container name
-            docker rm fastapi-book-container || true
+            docker stop fastapi-nginx || true  
+            docker rm fastapi-nginx || true
 
             # Run Docker container (adjust port mapping if needed)
-            docker run -d -p 80:80 --name fastapi-book-container fastapi-book-app  # Use a named container
+            docker run -d -p 80:80 --name fastapi-book-container fastapi-book-app  
+            
 
-            # Nginx Configuration (if needed, copy your nginx.conf file)
-            # scp nginx.conf ubuntu@${{ secrets.EC2_IP }}:/etc/nginx/nginx.conf  # If nginx.conf is in your repo
-            # sudo systemctl restart nginx
-
-            # HTTPS Setup (If you have a domain and Route53 setup)
-            # sudo apt install -y certbot python3-certbot-nginx
-            # sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com --noninteractive --agree-tos --email your_email@example.com --http-01-port 80
-            # sudo certbot renew --dry-run # For testing renewal
 
       - name: Verify Deployment (Optional)
         run: |
