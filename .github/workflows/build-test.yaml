@@ -19,12 +19,12 @@ jobs:
         with:
           python-version: 3.12
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Run Pytest
+      - name: Run Tests with Pytest
         run: pytest
 
   deploy:
@@ -36,55 +36,59 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+
+      - name: Set up Python 3.12 (Optional - if needed on EC2)
+        uses: actions/setup-python@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }} # e.g., us-east-1
+          python-version: 3.12
 
-      # - name: SSH into EC2 instance and deploy
-      #   uses: webfactory/ssh-agent@v0.9.0 # Use a specific version
-      #   with:
-      #     host: ${{ secrets.EC2_IP }}
-      #     username: ubuntu
-      #     ssh-private-key: ${{ secrets.EC2_PRIVATE_KEY }}
-      #     commands: |
-      - name: SSH into EC2 instance and deploy
+      - name: Set up SSH Private Key
+        run: |
+          echo "${{ secrets.EC2_PRIVATE_KEY }}" > private_key
+          chmod 600 private_key
+
+      - name: SSH into EC2 and Deploy
         env:
+          EC2_USER: ubuntu  # Or ec2-user, depending on your setup
           EC2_IP: ${{ secrets.EC2_IP }}
-          EC2_USER: ubuntu
-          SSH_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
         run: |
-          echo "$SSH_KEY" > private_key && chmod 600 private_key
-          ssh -o StrictHostKeyChecking=no -i private_key $EC2_USER@$EC2_IP << 'EOF'
-            # Update and install necessary packages (if needed)
-            sudo apt update && sudo apt install -y docker.io
+          ssh -o StrictHostKeyChecking=no -i private_key ${EC2_USER}@${EC2_IP} << 'EOF'
+            # Update and install Docker if not installed (idempotent)
+            sudo apt update -y  # -y to automatically accept prompts
+            sudo apt install -y docker.io
 
-            # Ensure docker service is running
-            sudo systemctl enable docker && sudo systemctl start docker
-            sudo rm -rf /home/ubuntu/app/*
-            # Create the app directory if it doesn't exist
-            mkdir -p /home/ubuntu/app
+            # Ensure Docker service is running
+            sudo systemctl enable docker  # Enable on boot
+            sudo systemctl restart docker  # Restart to apply changes
 
-            # Copy files to EC2
-            scp -r . ubuntu@${{ secrets.EC2_IP }}:/home/ubuntu/app
+            # Create app directory if not exists (idempotent)
+            sudo mkdir -p /home/${EC2_USER}/app
+            sudo chown ${EC2_USER}:${EC2_USER} /home/${EC2_USER}/app
 
-            cd /home/ubuntu/app
+            # Copy app files (using rsync for efficiency)
+            rsync -avz /tmp/app/ /home/${EC2_USER}/app --delete  # /tmp/app is the staging area
 
-            # Build Docker image
-            docker build -t fastapi-book-app .
+            cd /home/${EC2_USER}/app
 
-            # Stop and remove existing container (if any)
-            docker stop fastapi-nginx || true  
-            docker rm fastapi-nginx || true
+            # Build Docker image (with a tag)
+            sudo docker build -t fastapi-app:latest .
 
-            # Run Docker container (adjust port mapping if needed)
-            docker run -d -p 80:80 --name fastapi-book-container fastapi-book-app
+            # Stop and remove any existing container (handle errors gracefully)
+            sudo docker stop fastapi-container || true
+            sudo docker rm fastapi-container || true
+
+            # Run the new container (expose port 80, map volumes if needed)
+            sudo docker run -d -p 80:80 --name fastapi-container fastapi-app:latest
+
+            # Verify Deployment (Optional - but recommended)
+            curl -I http://localhost:80
           EOF
-            
 
-
-      - name: Verify Deployment (Optional)
+      - name: Copy App Files to EC2 (Staging)
         run: |
-          curl -I http://${{ secrets.EC2_IP }} # or your domain if HTTPS is set up
+          scp -o StrictHostKeyChecking=no -i private_key -r . ${EC2_USER}@${{ secrets.EC2_IP }}:/tmp/app
+
+      - name: Clean up SSH Key
+        if: always() # Always run cleanup even if previous steps fail
+        run: rm -f private_key
+
