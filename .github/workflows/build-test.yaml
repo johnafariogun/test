@@ -74,12 +74,8 @@ jobs:
             # Build Docker image (with a tag)
             sudo docker build -t fastapi-app:latest .
 
-            # Stop and remove any existing container (handle errors gracefully)
-            sudo docker stop fastapi-container || true
-            sudo docker rm fastapi-container || true
-
             # Run the new container (expose port 80, map volumes if needed)
-            sudo docker run -d -p 80:80 --name fastapi-container fastapi-app:latest
+            sudo docker run -d -p 80:80 fastapi-app:latest
 
             # Verify Deployment (Optional - but recommended)
             curl -I http://localhost:80
