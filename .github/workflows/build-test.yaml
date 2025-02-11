@@ -60,15 +60,14 @@ jobs:
             # Ensure Docker service is running
             sudo systemctl enable docker  # Enable on boot
             sudo systemctl restart docker  # Restart to apply changes
-      - name: Create app directory if not exists (idempotent)
-        env:
-          EC2_USER: ubuntu  # Or ec2-user, depending on your setup
-          EC2_IP: ${{ secrets.EC2_IP }}
-        run: |      
+            sudo rm -rf app
             mkdir app
             sudo chown ${EC2_USER}:${EC2_USER} app
+            git clone https://github.com/johnafariogun/test
+            mv test/* app/
+            sudo rm -rf test
             cd app
-            git pull origin main
+            
 
             
 
@@ -86,9 +85,6 @@ jobs:
             curl -I http://localhost:80
           EOF
 
-      - name: Copy App Files to EC2 (Staging)
-        run: |
-          scp -o StrictHostKeyChecking=no -i private_key -r . ${EC2_USER}@${{ secrets.EC2_IP }}:/tmp/app
 
       - name: Clean up SSH Key
         if: always() # Always run cleanup even if previous steps fail
