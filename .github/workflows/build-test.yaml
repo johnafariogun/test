@@ -62,13 +62,13 @@ jobs:
             sudo systemctl restart docker  # Restart to apply changes
 
             # Create app directory if not exists (idempotent)
-            sudo mkdir -p /home/${EC2_USER}/app
-            sudo chown ${EC2_USER}:${EC2_USER} /home/${EC2_USER}/app
+            mkdir app
+            sudo chown ${EC2_USER}:${EC2_USER} app
 
-            # Copy app files (using rsync for efficiency)
-            rsync -avz /tmp/app/ /home/${EC2_USER}/app --delete  # /tmp/app is the staging area
+            
+            git pull origin main
 
-            cd /home/${EC2_USER}/app
+            cd app
 
             # Build Docker image (with a tag)
             sudo docker build -t fastapi-app:latest .
