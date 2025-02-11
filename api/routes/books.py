@@ -56,6 +56,9 @@ async def get_book(book_id: int) -> Book:
         content={"detail": "Book not found"}
     )
     return book
+@router.get("/me", status_code=status.HTTP_200_OK)
+async def get_me():
+    return {"situation":"frustration"}
 
 @router.put("/{book_id}", response_model=Book, status_code=status.HTTP_200_OK)
 async def update_book(book_id: int, book: Book) -> Book:
