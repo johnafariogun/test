@@ -45,7 +45,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }} # e.g., us-east-1
 
       - name: SSH into EC2 instance and deploy
-        uses: webfactory/ssh-action@v0.6.0 # Use a specific version
+        uses: webfactory/ssh-agent@v0.9.0 # Use a specific version
         with:
           host: ${{ secrets.EC2_IP }}
           username: ubuntu
