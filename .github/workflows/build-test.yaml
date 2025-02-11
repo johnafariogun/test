@@ -2,9 +2,9 @@ name: FastAPI CI/CD Pipeline
 
 on:
   pull_request:
-    branches: [main]  
+    branches: [main]
   push:
-    branches: [main]  
+    branches: [main]
 
 jobs:
   test:
@@ -28,11 +28,62 @@ jobs:
         run: pytest
 
   deploy:
-    name: Deploy to Render
-    needs: test  
+    name: Deploy to AWS EC2
+    needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
-      - name: Deploy to Render
-        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }} # e.g., us-east-1
+
+      - name: SSH into EC2 instance and deploy
+        uses: appleboy/ghaction-ssh@master
+        with:
+          host: ${{ secrets.EC2_IP }}
+          username: ubuntu # Or your username
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script: |
+            # Update and install necessary packages (if needed)
+            sudo apt update && sudo apt install -y docker.io
+
+            # Ensure docker service is running
+            sudo systemctl enable docker && sudo systemctl start docker
+
+            # Create the app directory if it doesn't exist
+            mkdir -p /home/ubuntu/app
+
+            # Copy files to EC2
+            scp -r . ubuntu@${{ secrets.EC2_IP }}:/home/ubuntu/app
+
+            cd /home/ubuntu/app
+
+            # Build Docker image
+            docker build -t fastapi-book-app .
+
+            # Stop and remove existing container (if any)
+            docker stop fastapi-book-container || true  # Use the same container name
+            docker rm fastapi-book-container || true
+
+            # Run Docker container (adjust port mapping if needed)
+            docker run -d -p 80:80 --name fastapi-book-container fastapi-book-app  # Use a named container
+
+            # Nginx Configuration (if needed, copy your nginx.conf file)
+            # scp nginx.conf ubuntu@${{ secrets.EC2_IP }}:/etc/nginx/nginx.conf  # If nginx.conf is in your repo
+            # sudo systemctl restart nginx
+
+            # HTTPS Setup (If you have a domain and Route53 setup)
+            # sudo apt install -y certbot python3-certbot-nginx
+            # sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com --noninteractive --agree-tos --email your_email@example.com --http-01-port 80
+            # sudo certbot renew --dry-run # For testing renewal
+
+      - name: Verify Deployment (Optional)
+        run: |
+          curl -I http://${{ secrets.EC2_IP }} # or your domain if HTTPS is set up
