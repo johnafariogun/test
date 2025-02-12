@@ -59,6 +59,7 @@ jobs:
             # Remove old app directory
             sudo rm -rf /home/ubuntu/app
             sudo mkdir -p /home/ubuntu/app
+            sudo chown ubuntu:ubuntu /home/ubuntu/app
             # Clone the latest code from GitHub
             git clone https://github.com/johnafariogun/test /home/ubuntu/app
             cd /home/ubuntu/app
