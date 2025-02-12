@@ -57,6 +57,10 @@ async def get_book(book_id: int) -> Book:
     )
     return book
 
+@router.get("/my")
+async def get_book():
+    return {"details":"tired as fuck"}
+
 @router.put("/{book_id}", response_model=Book, status_code=status.HTTP_200_OK)
 async def update_book(book_id: int, book: Book) -> Book:
     return JSONResponse(
