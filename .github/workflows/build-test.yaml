@@ -66,8 +66,8 @@ jobs:
             sudo docker stop fastapi-nginx || true
             sudo docker rm fastapi-nginx || true
 
-            # Build the new Docker image
-            sudo docker build -t fastapi-nginx:latest .
+      
+            sudo docker build -t fastapi-nginx:latest -f /home/Ubuntu/app/Dockerfile .
 
             # Run the new container (expose ports for future HTTPS setup)
             sudo docker run -d -p 80:80 --name fastapi-nginx fastapi-nginx:latest
