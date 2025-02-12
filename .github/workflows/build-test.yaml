@@ -54,6 +54,7 @@ jobs:
             # Ensure Docker service is running
             sudo systemctl enable docker
             sudo systemctl restart docker
+            ls -l
 
             # Remove old app directory
             sudo rm -rf /home/ubuntu/app
